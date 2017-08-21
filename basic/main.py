@@ -7,6 +7,7 @@ import code
 from pprint import pprint
 
 import tensorflow as tf
+from tensorflow.python.ops import array_ops
 from tqdm import tqdm
 import numpy as np
 
@@ -234,17 +235,33 @@ def _extract_lstm_cells(config):
     graph_handler = GraphHandler(config, model)
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
     graph_handler.initialize(sess)
-    code.interact(local=locals())
-    # .first_cell_fw = first_cell_fw
-    #             self.first_cell_bw = first_cell_bw
-    #             self.second_cell_fw = second_cell_fw
-    #             self.second_cell_bw = second_cell_bw
-    #             self.d_cell4_fw = d_cell4_fw
-    #             self.d_cell4_bw = d_cell4_bw
-    cell_fw = sess.run(model.cell_fw)
-    print('Weights extracted...')
-    print(cell_fw)
+    cell_lists = [model.first_cell_fw.trainable_weights, model.first_cell_bw.trainable_weights, \
+                  model.second_cell_fw.trainable_weights, model.second_cell_bw.trainable_weights, \
+                  model.d_cell4_fw.trainable_weights, model.d_cell4_bw.trainable_weights]
+    cell_name_l = ['first_cell_fw', 'first_cell_bw', \
+                    'second_cell_fw', 'second_cell_bw', \
+                    'd_cell4_fw', 'd_cell4_bw']
+    ind = 0
+    np_l_str_kernel = ['i-kernel', 'j-kernel', 'f-kernel', 'o-kernel']
+    np_l_str_bias = ['i-bias', 'j-bias', 'f-bias', 'o-bias']
+    for cell_ind, cell_pair in enumerate(cell_lists):
+        kernel = cell_pair[0]
+        bias = cell_pair[1]
+        ik, jk, fk, ok = array_ops.split(value=kernel, num_or_size_splits=4, axis=1)
+        ib, jb, fb, ob = array_ops.split(value=kernel, num_or_size_splits=4, axis=1)
+        np_l = [ik, jk, fk, ok, ib, jb, fb, ob]
+        np_ll = sess.run(np_l)
+        for idx, val in enumerate(np_ll[0:4]):
+            n_r, n_c = val.shape
+            np.savetxt(np_l_str_kernel[idx]+'-'+cell_name_l[ind]+'-'+str(n_r)+'-'+str(n_c)+'.csv', val, delimiter=',')
 
+        for idx, val in enumerate(np_ll[5:-1]):
+            n_r, n_c = val.shape
+            np.savetxt(np_l_str_bias[idx]+'-'+cell_name_l[ind]+'-'+str(n_r)+'-'+str(n_c)+'.csv', val, delimiter=',')
+
+        ind += 1
+
+    print('Weights extracted...')
 
 
 def _get_args():
