@@ -18,12 +18,12 @@ flags.DEFINE_string("load_path", "", "Load path []")
 flags.DEFINE_string("shared_path", "", "Shared path []")
 
 # Device placement
-flags.DEFINE_string("device", "/cpu:0", "default device for summing gradients. [/cpu:0]")
+flags.DEFINE_string("device", "/cpu:0", "default device for summing gradientsn. [/cpu:0]")
 flags.DEFINE_string("device_type", "gpu", "device for computing gradients (parallelization). cpu | gpu [gpu]")
 flags.DEFINE_integer("num_gpus", 1, "num of gpus or cpus for computing gradients [1]")
 
 # Essential training and test options
-flags.DEFINE_string("mode", "test", "trains | test | forward [test]")
+flags.DEFINE_string("mode", "test", "trains | test | forward [test] | extract_lstm_weights_to_csv")
 flags.DEFINE_boolean("load", True, "load saved data? [True]")
 flags.DEFINE_bool("single", False, "supervise only the answer sentence? [False]")
 flags.DEFINE_boolean("debug", False, "Debugging mode? [False]")
@@ -100,7 +100,6 @@ flags.DEFINE_bool("q2c_att", True, "question-to-context attention? [True]")
 flags.DEFINE_bool("c2q_att", True, "context-to-question attention? [True]")
 flags.DEFINE_bool("dynamic_att", False, "Dynamic attention [False]")
 
-# Get weights
 
 def main(_):
     config = flags.FLAGS

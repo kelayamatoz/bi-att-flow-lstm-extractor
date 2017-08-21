@@ -225,6 +225,16 @@ class Model(object):
             flat_logits2 = tf.reshape(logits2, [-1, M * JX])
             flat_yp2 = tf.nn.softmax(flat_logits2)
 
+
+            if config.mode == 'extract_lstm_weights_to_csv':
+                self.first_cell_fw = cell_fw
+                self.first_cell_bw = cell_bw
+                self.second_cell_fw = cell2_fw
+                self.second_cell_bw = cell2_bw
+                self.d_cell4_fw = cell4_fw
+                self.d_cell4_bw = cell4_bw
+
+
             if config.na:
                 na_bias = tf.get_variable("na_bias", shape=[], dtype='float')
                 na_bias_tiled = tf.tile(tf.reshape(na_bias, [1, 1]), [N, 1])  # [N, 1]

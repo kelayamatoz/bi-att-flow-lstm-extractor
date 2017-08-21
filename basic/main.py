@@ -3,6 +3,7 @@ import json
 import math
 import os
 import shutil
+import code
 from pprint import pprint
 
 import tensorflow as tf
@@ -26,6 +27,8 @@ def main(config):
             _test(config)
         elif config.mode == 'forward':
             _forward(config)
+        elif config.mode == 'extract_lstm_weights_to_csv':
+            _extract_lstm_cells(config)
         else:
             raise ValueError("invalid value for 'mode': {}".format(config.mode))
 
@@ -209,6 +212,39 @@ def _forward(config):
     if config.dump_eval:
         print("dumping eval ...")
         graph_handler.dump_eval(e, path=config.eval_path)
+
+
+def _extract_lstm_cells(config):
+    print('Extracting weights...')
+    test_data = read_data(config, 'test', True)
+    update_config(config, [test_data])
+
+    _config_debug(config)
+
+    if config.use_glove_for_unk:
+        word2vec_dict = test_data.shared['lower_word2vec'] if config.lower_word else test_data.shared['word2vec']
+        new_word2idx_dict = test_data.shared['new_word2idx']
+        idx2vec_dict = {idx: word2vec_dict[word] for word, idx in new_word2idx_dict.items()}
+        new_emb_mat = np.array([idx2vec_dict[idx] for idx in range(len(idx2vec_dict))], dtype='float32')
+        config.new_emb_mat = new_emb_mat    
+    pprint(config.__flags, indent=2)
+    models = get_multi_gpu_models(config)
+    model = models[0]
+    evaluator = MultiGPUF1Evaluator(config, models, tensor_dict=models[0].tensor_dict if config.vis else None)
+    graph_handler = GraphHandler(config, model)
+    sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+    graph_handler.initialize(sess)
+    code.interact(local=locals())
+    # .first_cell_fw = first_cell_fw
+    #             self.first_cell_bw = first_cell_bw
+    #             self.second_cell_fw = second_cell_fw
+    #             self.second_cell_bw = second_cell_bw
+    #             self.d_cell4_fw = d_cell4_fw
+    #             self.d_cell4_bw = d_cell4_bw
+    cell_fw = sess.run(model.cell_fw)
+    print('Weights extracted...')
+    print(cell_fw)
+
 
 
 def _get_args():
