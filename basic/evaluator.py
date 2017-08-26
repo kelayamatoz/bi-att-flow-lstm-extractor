@@ -107,11 +107,11 @@ class Evaluator(object):
     def get_evaluation(self, sess, batch):
         idxs, data_set = batch
         feed_dict = self.model.get_feed_dict(data_set, False, supervised=False)
-        global_step, yp, vals = sess.run([self.global_step, self.yp, list(self.tensor_dict.values())], feed_dict=feed_dict)
+        global_step, yp, vals = sess.run([self.model.xx_, self.model.qq_, self.global_step, self.yp, list(self.tensor_dict.values())], feed_dict=feed_dict)
         yp = yp[:data_set.num_examples]
         tensor_dict = dict(zip(self.tensor_dict.keys(), vals))
         e = Evaluation(data_set.data_type, int(global_step), idxs, yp.tolist(), tensor_dict=tensor_dict)
-        return e
+        return e, self.model.xx_, self.model.qq_
 
     def get_evaluation_from_batches(self, sess, batches):
         e = sum(self.get_evaluation(sess, batch) for batch in batches)
@@ -249,14 +249,38 @@ class F1Evaluator(LabeledEvaluator):
         if config.na:
             self.na = model.na_prob
 
+        self.Acx_ = model.Acx_
+        self.Acq_ = model.Acq_
+        self.Acx_orig = model.Acx_orig
+        self.Acq_orig = model.Acq_orig
+        self.filter_sizes_ = model.filter_sizes_
+        self.heights_ = model.heights_
+        self.xx_ = model.xx_
+        self.qq_ = model.qq_
+        self.xx_orig = model.xx_orig
+        self.qq_orig = model.qq_orig
+        self.M_ = model.M_
+        self.JX_ = model.JX_
+        self.JQ_ = model.JQ_
+        self.dco_ = model.dco_
+
     def get_evaluation(self, sess, batch):
         idxs, data_set = self._split_batch(batch)
         assert isinstance(data_set, DataSet)
         feed_dict = self._get_feed_dict(batch)
+        # outputs = [self.Acx_, self.Acq_, self.Acx_orig, self.Acq_orig, self.xx_, self.qq_, self.xx_orig, self.qq_orig]
+
         if self.config.na:
-            global_step, yp, yp2, wyp, loss, na, vals = sess.run([self.global_step, self.yp, self.yp2, self.wyp, self.loss, self.na, list(self.tensor_dict.values())], feed_dict=feed_dict)
+            outputs = [self.Acx_, self.Acq_, self.Acx_orig, self.Acq_orig, self.xx_, self.qq_, self.xx_orig, self.qq_orig, \
+                        self.global_step, self.yp, self.yp2, self.wyp, self.loss, self.na, list(self.tensor_dict.values())]
+            Acx_, Acq_, Acx_orig, Acq_orig, xx_, qq_, xx_orig, qq_orig, \
+                global_step, yp, yp2, wyp, loss, na, vals = sess.run(outputs, feed_dict=feed_dict)
         else:
-            global_step, yp, yp2, wyp, loss, vals = sess.run([self.global_step, self.yp, self.yp2, self.wyp, self.loss, list(self.tensor_dict.values())], feed_dict=feed_dict)
+            outputs = [self.Acx_, self.Acq_, self.Acx_orig, self.Acq_orig, self.xx_, self.qq_, self.xx_orig, self.qq_orig, \
+                        self.global_step, self.yp, self.yp2, self.wyp, self.loss, list(self.tensor_dict.values())]
+            Acx_, Acq_, Acx_orig, Acq_orig, xx_, qq_, xx_orig, qq_orig, \
+                global_step, yp, yp2, wyp, loss, vals = sess.run(outputs, feed_dict=feed_dict)
+        re_l = [Acx_, Acq_, Acx_orig, Acq_orig, xx_, qq_, xx_orig, qq_orig]
         y = data_set.data['y']
         if self.config.squash:
             new_y = []
@@ -315,7 +339,7 @@ class F1Evaluator(LabeledEvaluator):
                          correct, float(loss), f1s, id2answer_dict, tensor_dict=tensor_dict)
         if self.config.wy:
             e.dict['wyp'] = wyp.tolist()
-        return e
+        return e, re_l
 
     def _split_batch(self, batch):
         return batch

@@ -3,6 +3,7 @@ import random
 import itertools
 import numpy as np
 import tensorflow as tf
+import code
 from tensorflow.contrib.rnn import BasicLSTMCell
 
 from basic.read_data import DataSet
@@ -77,7 +78,8 @@ class Model(object):
         self._build_forward()
         self._build_loss()
         self.var_ema = None
-        # if rep:
+
+        # if rep
         #     self._build_var_ema()
         # if config.mode == 'train':
         #     self._build_ema()
@@ -102,23 +104,39 @@ class Model(object):
                     char_emb_mat = tf.get_variable("char_emb_mat", shape=[VC, dc], dtype='float')
 
                 with tf.variable_scope("char"):
-                    Acx = tf.nn.embedding_lookup(char_emb_mat, self.cx)  # [N, M, JX, W, dc]
-                    Acq = tf.nn.embedding_lookup(char_emb_mat, self.cq)  # [N, JQ, W, dc]
-                    Acx = tf.reshape(Acx, [-1, JX, W, dc])
-                    Acq = tf.reshape(Acq, [-1, JQ, W, dc])
+                    Acx_ = tf.nn.embedding_lookup(char_emb_mat, self.cx)  # [N, M, JX, W, dc]
+                    Acq_ = tf.nn.embedding_lookup(char_emb_mat, self.cq)  # [N, JQ, W, dc]
+                    Acx = tf.reshape(Acx_, [-1, JX, W, dc])
+                    Acq = tf.reshape(Acq_, [-1, JQ, W, dc])
 
                     filter_sizes = list(map(int, config.out_channel_dims.split(',')))
                     heights = list(map(int, config.filter_heights.split(',')))
                     assert sum(filter_sizes) == dco, (filter_sizes, dco)
                     with tf.variable_scope("conv"):
-                        xx = multi_conv1d(Acx, filter_sizes, heights, "VALID",  self.is_train, config.keep_prob, scope="xx")
+                        xx_ = multi_conv1d(Acx, filter_sizes, heights, "VALID",  self.is_train, config.keep_prob, scope="xx")
                         if config.share_cnn_weights:
                             tf.get_variable_scope().reuse_variables()
-                            qq = multi_conv1d(Acq, filter_sizes, heights, "VALID", self.is_train, config.keep_prob, scope="xx")
+                            qq_ = multi_conv1d(Acq, filter_sizes, heights, "VALID", self.is_train, config.keep_prob, scope="xx")
                         else:
-                            qq = multi_conv1d(Acq, filter_sizes, heights, "VALID", self.is_train, config.keep_prob, scope="qq")
-                        xx = tf.reshape(xx, [-1, M, JX, dco])
-                        qq = tf.reshape(qq, [-1, JQ, dco])
+                            qq_ = multi_conv1d(Acq, filter_sizes, heights, "VALID", self.is_train, config.keep_prob, scope="qq")
+                        xx = tf.reshape(xx_, [-1, M, JX, dco])
+                        qq = tf.reshape(qq_, [-1, JQ, dco])
+
+                    # Values that may interest me
+                    self.Acx_ = Acx_
+                    self.Acq_ = Acq_
+                    self.Acx_orig = Acx
+                    self.Acq_orig = Acq
+                    self.filter_sizes_ = filter_sizes
+                    self.heights_ = heights
+                    self.xx_ = xx_
+                    self.qq_ = qq_
+                    self.xx_orig = xx
+                    self.qq_orig = qq
+                    self.M_ = M
+                    self.JX_ = JX
+                    self.JQ_ = JQ
+                    self.dco_ = dco
 
             if config.use_word_emb:
                 with tf.variable_scope("emb_var"), tf.device("/cpu:0"):

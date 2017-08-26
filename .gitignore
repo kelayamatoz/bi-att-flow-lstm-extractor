@@ -2,6 +2,7 @@ out/
 data/
 basic/__pycache__
 */__pycache__/
+my/tensorflow/__pycache__
 tf12/
 result.txt
 run_history.log

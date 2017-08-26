@@ -81,6 +81,8 @@ def _train(config):
                         else np.random.multivariate_normal(np.zeros(config.word_emb_size), np.eye(config.word_emb_size))
                         for idx in range(config.word_vocab_size)])
     config.emb_mat = emb_mat
+    np.savetxt('emb_mat.csv', config.emb_mat, delimiter=',')
+    print('emb_mat.csv saved')
 
     # construct model graph and variables (using default graph)
     pprint(config.__flags, indent=2)
@@ -159,8 +161,9 @@ def _test(config):
         num_steps = config.test_num_batches
 
     e = None
+
     for multi_batch in tqdm(test_data.get_multi_batches(config.batch_size, config.num_gpus, num_steps=num_steps, cluster=config.cluster), total=num_steps):
-        ei = evaluator.get_evaluation(sess, multi_batch)
+        ei, re_l = evaluator.get_evaluation(sess, multi_batch)
         e = ei if e is None else e + ei
         if config.vis:
             eval_subdir = os.path.join(config.eval_dir, "{}-{}".format(ei.data_type, str(ei.global_step).zfill(6)))
@@ -168,6 +171,18 @@ def _test(config):
                 os.mkdir(eval_subdir)
             path = os.path.join(eval_subdir, str(ei.idxs[0]).zfill(8))
             graph_handler.dump_eval(ei, path=path)
+        Acx_, Acq_, Acx_orig, Acq_orig, xx_, qq_, xx_orig, qq_orig = re_l
+
+        print('')
+        print("Acx_ shape = " + str(Acx_.shape))
+        print("Acq_ shape = " + str(Acq_.shape))
+        print("Acx_orig shape = " + str(Acx_orig.shape))
+        print("Acq_orig shape = " + str(Acq_orig.shape))
+        print("xx_ shape = " + str(xx_.shape))
+        print("qq_ shape = " + str(qq_.shape))
+        print("xx_orig shape = " + str(xx_orig.shape))
+        print("qq_orig shape = " + str(qq_orig.shape))
+        print('')
 
     print(e)
     if config.dump_answer:
@@ -235,6 +250,8 @@ def _extract_lstm_cells(config):
     graph_handler = GraphHandler(config, model)
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
     graph_handler.initialize(sess)
+    code.interact(local=locals())
+
     cell_lists = [model.first_cell_fw.trainable_weights, model.first_cell_bw.trainable_weights, \
                   model.second_cell_fw.trainable_weights, model.second_cell_bw.trainable_weights, \
                   model.d_cell4_fw.trainable_weights, model.d_cell4_bw.trainable_weights]
