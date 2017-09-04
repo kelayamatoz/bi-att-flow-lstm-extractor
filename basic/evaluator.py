@@ -249,6 +249,11 @@ class F1Evaluator(LabeledEvaluator):
         if config.na:
             self.na = model.na_prob
 
+        self.u_logits = model.u_logits
+        self.flat_out = model.flat_out
+        self.flat_args = model.flat_args
+        self.h_aug = model.h_aug
+        self.u_aug = model.u_aug
         self.Acx_ = model.Acx_
         self.Acq_ = model.Acq_
         self.Acx_orig = model.Acx_orig
@@ -264,6 +269,7 @@ class F1Evaluator(LabeledEvaluator):
         self.JQ_ = model.JQ_
         self.dco_ = model.dco_
 
+
     def get_evaluation(self, sess, batch):
         idxs, data_set = self._split_batch(batch)
         assert isinstance(data_set, DataSet)
@@ -271,16 +277,18 @@ class F1Evaluator(LabeledEvaluator):
         # outputs = [self.Acx_, self.Acq_, self.Acx_orig, self.Acq_orig, self.xx_, self.qq_, self.xx_orig, self.qq_orig]
 
         if self.config.na:
-            outputs = [self.Acx_, self.Acq_, self.Acx_orig, self.Acq_orig, self.xx_, self.qq_, self.xx_orig, self.qq_orig, \
+            outputs = [self.flat_out, self.flat_args, self.h_aug, self.u_aug, \
+                        self.u_logits, self.Acx_, self.Acq_, self.Acx_orig, self.Acq_orig, self.xx_, self.qq_, self.xx_orig, self.qq_orig, \
                         self.global_step, self.yp, self.yp2, self.wyp, self.loss, self.na, list(self.tensor_dict.values())]
-            Acx_, Acq_, Acx_orig, Acq_orig, xx_, qq_, xx_orig, qq_orig, \
+            u_logits, Acx_, Acq_, Acx_orig, Acq_orig, xx_, qq_, xx_orig, qq_orig, \
                 global_step, yp, yp2, wyp, loss, na, vals = sess.run(outputs, feed_dict=feed_dict)
         else:
-            outputs = [self.Acx_, self.Acq_, self.Acx_orig, self.Acq_orig, self.xx_, self.qq_, self.xx_orig, self.qq_orig, \
+            outputs = [self.flat_out, self.flat_args, self.h_aug, self.u_aug, \
+                        self.u_logits, self.Acx_, self.Acq_, self.Acx_orig, self.Acq_orig, self.xx_, self.qq_, self.xx_orig, self.qq_orig, \
                         self.global_step, self.yp, self.yp2, self.wyp, self.loss, list(self.tensor_dict.values())]
-            Acx_, Acq_, Acx_orig, Acq_orig, xx_, qq_, xx_orig, qq_orig, \
+            flat_out, flat_args, h_aug, u_aug, u_logits, Acx_, Acq_, Acx_orig, Acq_orig, xx_, qq_, xx_orig, qq_orig, \
                 global_step, yp, yp2, wyp, loss, vals = sess.run(outputs, feed_dict=feed_dict)
-        re_l = [Acx_, Acq_, Acx_orig, Acq_orig, xx_, qq_, xx_orig, qq_orig]
+        re_l = [flat_out, flat_args, h_aug, u_aug, u_logits, Acx_, Acq_, Acx_orig, Acq_orig, xx_, qq_, xx_orig, qq_orig]
         y = data_set.data['y']
         if self.config.squash:
             new_y = []

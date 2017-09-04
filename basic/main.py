@@ -171,9 +171,14 @@ def _test(config):
                 os.mkdir(eval_subdir)
             path = os.path.join(eval_subdir, str(ei.idxs[0]).zfill(8))
             graph_handler.dump_eval(ei, path=path)
-        Acx_, Acq_, Acx_orig, Acq_orig, xx_, qq_, xx_orig, qq_orig = re_l
+        flat_out, flat_args, h_aug, u_aug, u_logits, Acx_, Acq_, Acx_orig, Acq_orig, xx_, qq_, xx_orig, qq_orig = re_l
 
         print('')
+        print("u_logits shape = " + str(u_logits.shape))
+        print("flat_out shape = " + str(flat_out.shape))
+        print("flat_args shape = " + str(flat_args.shape))
+        print("h_aug shape = " + str(h_aug.shape))
+        print("u_aug shape = " + str(u_aug.shape))
         print("Acx_ shape = " + str(Acx_.shape))
         print("Acq_ shape = " + str(Acq_.shape))
         print("Acx_orig shape = " + str(Acx_orig.shape))

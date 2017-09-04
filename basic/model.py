@@ -215,18 +215,25 @@ class Model(object):
                 second_cell_bw = AttentionCell(cell3_bw, u, mask=q_mask, mapper='sim',
                                                input_keep_prob=self.config.input_keep_prob, is_train=self.is_train)
             else:
-                p0 = attention_layer(config, self.is_train, h, u, h_mask=self.x_mask, u_mask=self.q_mask, scope="p0", tensor_dict=self.tensor_dict)
+                p0, u_logits, flat_out, flat_args, h_aug, u_aug = attention_layer(config, self.is_train, h, u, h_mask=self.x_mask, u_mask=self.q_mask, scope="p0", tensor_dict=self.tensor_dict)
                 first_cell_fw = d_cell2_fw
                 second_cell_fw = d_cell3_fw
                 first_cell_bw = d_cell2_bw
                 second_cell_bw = d_cell3_bw
+
+                self.u_logits = u_logits
+                self.flat_out = flat_out
+                self.flat_args = flat_args
+                self.h_aug = h_aug
+                self.u_aug = u_aug
+                
 
             (fw_g0, bw_g0), _ = bidirectional_dynamic_rnn(first_cell_fw, first_cell_bw, p0, x_len, dtype='float', scope='g0')  # [N, M, JX, 2d]
             g0 = tf.concat(axis=3, values=[fw_g0, bw_g0])
             (fw_g1, bw_g1), _ = bidirectional_dynamic_rnn(second_cell_fw, second_cell_bw, g0, x_len, dtype='float', scope='g1')  # [N, M, JX, 2d]
             g1 = tf.concat(axis=3, values=[fw_g1, bw_g1])
 
-            logits = get_logits([g1, p0], d, True, wd=config.wd, input_keep_prob=config.input_keep_prob,
+            logits, _, _ = get_logits([g1, p0], d, True, wd=config.wd, input_keep_prob=config.input_keep_prob,
                                 mask=self.x_mask, is_train=self.is_train, func=config.answer_func, scope='logits1')
             a1i = softsel(tf.reshape(g1, [N, M * JX, 2 * d]), tf.reshape(logits, [N, M * JX]))
             a1i = tf.tile(tf.expand_dims(tf.expand_dims(a1i, 1), 1), [1, M, JX, 1])
@@ -234,7 +241,7 @@ class Model(object):
             (fw_g2, bw_g2), _ = bidirectional_dynamic_rnn(d_cell4_fw, d_cell4_bw, tf.concat(axis=3, values=[p0, g1, a1i, g1 * a1i]),
                                                           x_len, dtype='float', scope='g2')  # [N, M, JX, 2d]
             g2 = tf.concat(axis=3, values=[fw_g2, bw_g2])
-            logits2 = get_logits([g2, p0], d, True, wd=config.wd, input_keep_prob=config.input_keep_prob,
+            logits2, _, _ = get_logits([g2, p0], d, True, wd=config.wd, input_keep_prob=config.input_keep_prob,
                                  mask=self.x_mask,
                                  is_train=self.is_train, func=config.answer_func, scope='logits2')
 
@@ -529,7 +536,7 @@ def bi_attention(config, is_train, h, u, h_mask=None, u_mask=None, scope=None, t
             u_mask_aug = tf.tile(tf.expand_dims(tf.expand_dims(u_mask, 1), 1), [1, M, JX, 1])
             hu_mask = h_mask_aug & u_mask_aug
 
-        u_logits = get_logits([h_aug, u_aug], None, True, wd=config.wd, mask=hu_mask,
+        u_logits, flat_out, flat_args = get_logits([h_aug, u_aug], None, True, wd=config.wd, mask=hu_mask,
                               is_train=is_train, func=config.logit_func, scope='u_logits')  # [N, M, JX, JQ]
         u_a = softsel(u_aug, u_logits)  # [N, M, JX, d]
         h_a = softsel(h, tf.reduce_max(u_logits, 3))  # [N, M, d]
@@ -544,7 +551,7 @@ def bi_attention(config, is_train, h, u, h_mask=None, u_mask=None, scope=None, t
             for var in variables:
                 tensor_dict[var.name] = var
 
-        return u_a, h_a
+        return u_a, h_a, u_logits, flat_out, flat_args, h_aug, u_aug # u_logits for debugging
 
 
 def attention_layer(config, is_train, h, u, h_mask=None, u_mask=None, scope=None, tensor_dict=None):
@@ -553,11 +560,12 @@ def attention_layer(config, is_train, h, u, h_mask=None, u_mask=None, scope=None
         M = tf.shape(h)[1]
         JQ = tf.shape(u)[1]
         if config.q2c_att or config.c2q_att:
-            u_a, h_a = bi_attention(config, is_train, h, u, h_mask=h_mask, u_mask=u_mask, tensor_dict=tensor_dict)
+            u_a, h_a, u_logits, flat_out, flat_args, h_aug, u_aug \
+                = bi_attention(config, is_train, h, u, h_mask=h_mask, u_mask=u_mask, tensor_dict=tensor_dict)
         if not config.c2q_att:
             u_a = tf.tile(tf.expand_dims(tf.expand_dims(tf.reduce_mean(u, 1), 1), 1), [1, M, JX, 1])
         if config.q2c_att:
             p0 = tf.concat(axis=3, values=[h, u_a, h * u_a, h * h_a])
         else:
             p0 = tf.concat(axis=3, values=[h, u_a, h * u_a])
-        return p0
+        return p0, u_logits, flat_out, flat_args, h_aug, u_aug

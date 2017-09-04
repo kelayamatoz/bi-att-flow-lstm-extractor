@@ -25,7 +25,7 @@ def linear(args, output_size, bias, bias_start=0.0, scope=None, squeeze=False, w
     if wd:
         add_wd(wd)
 
-    return out
+    return out, flat_out, flat_args
 
 
 def dropout(x, keep_prob, is_train, noise_shape=None, seed=None, name=None):
@@ -77,11 +77,11 @@ def double_linear_logits(args, size, bias, bias_start=0.0, scope=None, mask=None
 
 def linear_logits(args, bias, bias_start=0.0, scope=None, mask=None, wd=0.0, input_keep_prob=1.0, is_train=None):
     with tf.variable_scope(scope or "Linear_Logits"):
-        logits = linear(args, 1, bias, bias_start=bias_start, squeeze=True, scope='first',
+        logits, flat_out, flat_args = linear(args, 1, bias, bias_start=bias_start, squeeze=True, scope='first',
                         wd=wd, input_keep_prob=input_keep_prob, is_train=is_train)
         if mask is not None:
             logits = exp_mask(logits, mask)
-        return logits
+        return logits, flat_out, flat_args
 
 
 def sum_logits(args, mask=None, name=None):
@@ -126,8 +126,9 @@ def get_logits(args, size, bias, bias_start=0.0, scope=None, mask=None, wd=0.0, 
     elif func == 'tri_linear':
         assert len(args) == 2
         new_arg = args[0] * args[1]
-        return linear_logits([args[0], args[1], new_arg], bias, bias_start=bias_start, scope=scope, mask=mask, wd=wd, input_keep_prob=input_keep_prob,
+        logits, flat_out, flat_args = linear_logits([args[0], args[1], new_arg], bias, bias_start=bias_start, scope=scope, mask=mask, wd=wd, input_keep_prob=input_keep_prob,
                              is_train=is_train)
+        return logits, flat_out, flat_args
     else:
         raise Exception()
 
